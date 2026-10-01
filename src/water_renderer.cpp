@@ -1177,14 +1177,13 @@ void WaterRenderer::FillClassConstants(ShadingConstants& c, const WaterPreset& p
 {
     c = {};
     const WaterData& data = GlobalWaterData();
-    const bool noSun = waterClass == WaterClass::Interior;
+    // Interior water is no longer a special case: it shades exactly like lake/ocean water.
     float toLight[3] = {m_in.toLight[0], m_in.toLight[1], m_in.toLight[2]};
     const float length = std::sqrt(toLight[0] * toLight[0] + toLight[1] * toLight[1] + toLight[2] * toLight[2]);
     for (float& axis : toLight)
         axis = length > 1e-6f ? axis / length : 0.0f;
-    const float sunVisibility =
-        noSun ? 0.0f : SmoothStep(-kSunVisibilityHalfWidth, kSunVisibilityHalfWidth, toLight[2]);
-    const float sunTransmission = noSun ? 1.0f : 1.0f - FresnelSchlick(Saturate(toLight[2]));
+    const float sunVisibility = SmoothStep(-kSunVisibilityHalfWidth, kSunVisibilityHalfWidth, toLight[2]);
+    const float sunTransmission = 1.0f - FresnelSchlick(Saturate(toLight[2]));
     float sun[3];
     LinearColour(m_in.directColor, sun);
     for (float& channel : sun)
@@ -1197,19 +1196,16 @@ void WaterRenderer::FillClassConstants(ShadingConstants& c, const WaterPreset& p
         for (int channel = 0; channel < 3; ++channel)
             ambient[channel] += sky[i][channel] / kSkyColorCount;
     }
-    if (noSun)
-        LinearColour(m_in.ambientColor, ambient);
 
     c.light = {toLight[0], toLight[1], toLight[2], sunVisibility};
     c.sunColour = {sun[0], sun[1], sun[2], sunTransmission};
     c.ambient = {ambient[0], ambient[1], ambient[2], 0.0f};
-    c.isotropicLight = noSun ? Float4{1.0f, 1.0f, 1.0f, 0.0f}
-                             : Float4{ambient[0] + sunVisibility * sun[0], ambient[1] + sunVisibility * sun[1],
-                                      ambient[2] + sunVisibility * sun[2], 0.0f};
+    c.isotropicLight = Float4{ambient[0] + sunVisibility * sun[0], ambient[1] + sunVisibility * sun[1],
+                              ambient[2] + sunVisibility * sun[2], 0.0f};
     for (int band = 0; band < kWaterSkyBands; ++band)
     {
         const float* colour = sky[kSkyColourOfBand[band]];
-        c.sky[band] = noSun ? Float4{} : Float4{colour[0], colour[1], colour[2], 0.0f};
+        c.sky[band] = Float4{colour[0], colour[1], colour[2], 0.0f};
     }
     if (m_water.stockFogApplies)
     {
@@ -1224,7 +1220,8 @@ void WaterRenderer::FillClassConstants(ShadingConstants& c, const WaterPreset& p
                     preset.absorption[2] * absorptionScale, 0.0f};
     c.scatteringIntensities = {preset.scatteringIntensities[0], preset.scatteringIntensities[1],
                                preset.scatteringIntensities[2], preset.scatteringIntensities[3]};
-    const uint32_t* zone = waterClass == WaterClass::Ocean ? m_water.oceanColors : m_water.riverColors;
+    // Lake is the only shading class now; it uses the river/lake zone palette.
+    const uint32_t* zone = m_water.riverColors;
     float closeWater[3];
     float farWater[3];
     LinearColour(zone[kCloseWaterColour], closeWater);
@@ -1265,8 +1262,7 @@ void WaterRenderer::FillClassConstants(ShadingConstants& c, const WaterPreset& p
                     ScrollOffset(seconds, 0, preset.shoreFoam[3]), ScrollOffset(seconds, 1, preset.shoreFoam[3])};
     c.depthFoamScroll = {ScrollOffset(seconds, 0, preset.depthFadeFoam[3]),
                          ScrollOffset(seconds, 1, preset.depthFadeFoam[3]), 0.0f, 0.0f};
-    if (!noSun)
-        c.reflectionFog = m_reflectionFog;
+    c.reflectionFog = m_reflectionFog;
     const float packedUnit = kWaterMaxViewDepth / kPackedDepthLevels * kByteMax;
     c.depthDecode = m_packedDepth ? Float4{packedUnit * kHighByteWeight, packedUnit * kMidByteWeight, packedUnit, 0.0f}
                                   : Float4{1.0f, 0.0f, 0.0f, 0.0f};

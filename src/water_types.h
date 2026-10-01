@@ -78,9 +78,12 @@ inline uint32_t ForeverLiquidOf(WaterClass waterClass)
     case WaterClass::River:
         return kForeverGenericRiver;
     case WaterClass::Ocean:
-        return kForeverGenericOcean;
+        // Ocean shares the lake preset so ocean water has the same properties as lake.
+        return kForeverGenericLake;
+    // Interior shares the lake preset so any residual interior-tagged draw has the
+    // same properties as lake water instead of a distinct interior surface.
     case WaterClass::Interior:
-        return kForeverWmoInterior;
+        return kForeverGenericLake;
     default:
         return 0;
     }
