@@ -1,0 +1,108 @@
+# AGENTS.md
+
+This workspace is the **wxl-water** module (listed as **Modern Water**): a single WarcraftXL
+extension that adds modern water shading to the World of Warcraft 3.3.5a **(build 12340)** client.
+It is the water half of the former combined `wxl-vol-fog` module — GPU FFT waves, foam, sun
+highlights, player/creature ripples, scene reflections and depth-aware absorption, tuned from the
+WarcraftXL overlay. Fog lives in the separate `wxl-vol-fog` module.
+
+The framework that loads this module is **WarcraftXL**, whose source now lives at:
+
+```
+C:\Users\Strix\Documents\Github Projects\WXL-BUIDLER\wxl-build\wxl-core
+```
+
+Read that core's `README.md` for the full framework description; the notes below are how to work in
+*this* tree.
+
+## Layout
+
+```
+src/                 the CoAVolFog water sources, the shared engine/D3D9 layer, and the WXL seam
+shaders/             the HLSL passes the water renderer compiles and includes
+data/                waterdata.bin (zone colours / wave spectra)
+tools/               the Forever water data converter and helper scripts
+cmake/               shader list cmake (WaterShaders.cmake, WaterFftShaders.cmake)
+module.cmake         fxc shader build + config/data deployment (picked up by the core's extension loop)
+wxl.json             extension manifest (id wxl-water, entry wxl-water.dll, conflicts wxl-vol-fog)
+store/               store listing description
+```
+
+`module.cmake` was inherited from `wxl-vol-fog`, so its comments and `VOLFOG_*` variable names still
+refer to the old combined module; functionally it compiles the HLSL passes with `fxc` into generated
+headers and deploys `wxl-water.ini` + `data/waterdata.bin` beside the DLL.
+
+Everything targets **32-bit (Win32)** — the client is a 32-bit process. Sources are **C++20** with a
+static CRT.
+
+## Workflow rules
+
+- **Always build the module DLL into this folder** (`wxl-water.dll` next to this file). Do not leave
+  the build output only under the core's `build/`.
+- **Before replacing an existing DLL, back it up** by renaming/creating a `.bak` copy first
+  (`wxl-water.dll` → `wxl-water.dll.bak`).
+- The game must be **closed** while deploying — the client locks the loaded DLL.
+- This module is **mutually exclusive** with `wxl-vol-fog` (`wxl.json` declares the conflict):
+  each installs its own D3D9 device wrapper and engine call-site hooks, so only one may be loaded.
+- Vendored code under `wxl-build/wxl-core/deps/` and `vendor/` is third-party: don't edit it.
+- Go through the SDK (`include/wxl/`, `wxl::game`, `wxl::events`) and do not `#include "offsets/..."`
+  directly — that boundary is enforced by the core's SDK check.
+
+## Building the core
+
+The core lives at `C:\Users\Strix\Documents\Github Projects\WXL-BUIDLER\wxl-build\wxl-core`.
+Requirements: CMake ≥ 3.25 (its `CMakeLists.txt` needs ≥ 3.20), a Win32 C++ toolchain (Visual Studio
+2022 recommended), the Windows SDK (for `fxc.exe`), and a legally-obtained 3.3.5a (12340) client.
+
+The supported path is the core's `build.ps1`, which configures `-A Win32`, builds **Release**, and
+deploys into the client:
+
+```powershell
+$core = "C:\Users\Strix\Documents\Github Projects\WXL-BUIDLER\wxl-build\wxl-core"
+cd $core
+.\build.ps1 -ClientPath "D:\Path\To\Client"   # first run: configures + builds + deploys
+.\build.ps1                                    # later runs reuse the cached client path
+.\build.ps1 -Clean                             # wipe build\ and rebuild from scratch
+.\build.ps1 -AutoPatch                         # also run wxl-patcher.exe on the client's Wow.exe
+```
+
+`build.ps1` builds every extension target at once; use the focused per-target path below when working
+on this module.
+
+## Building this module
+
+The core **auto-discovers** every folder under `wxl-build/wxl-core/extensions/<name>/`: one shared
+library per folder, built from its `*.cpp`, with no per-module `CMakeLists.txt` required. An
+extension defines `WXL_EXTENSION`, exports the two ABI entry points (`WXL_Query` / `WXL_Load`, see
+`include/wxl/PluginApi.h`), and subclasses `wxl::ext::EventScript` for events. Optional sibling
+`module.cmake` (extra include dirs / link libs / shader builds) is picked up automatically.
+
+Build this module by staging it into the core's `extensions/` folder and building the named target:
+
+```powershell
+$core = "C:\Users\Strix\Documents\Github Projects\WXL-BUIDLER\wxl-build\wxl-core"
+$repo = "C:\Users\Strix\Documents\Github Projects\WXL\wxl-water"
+$name = "wxl-water"
+$dst  = "$core\extensions\$name"
+New-Item -ItemType Directory -Force -Path $dst | Out-Null
+Copy-Item "$repo\*" -Destination $dst -Recurse -Force
+
+cmake -S $core -B "$core\build" -A Win32
+cmake --build "$core\build" --config Release --target $name --parallel
+
+# copy the DLL back into the module folder, backing up any existing DLL first
+if (Test-Path "$repo\$name.dll") { Copy-Item "$repo\$name.dll" "$repo\$name.dll.bak" -Force }
+Copy-Item "$core\build\Release\$name.dll" "$repo\$name.dll" -Force
+```
+
+`module.cmake` needs `fxc.exe` from the Windows SDK; set `-DVOLFOG_FXC=<path>` on the configure line
+if it is not found. When `CLIENT_PATH` is set it also deploys `wxl-water.ini` and `data/waterdata.bin`
+to `<client>\Extensions\wxl-water\`.
+
+## Configuring
+
+The core reads `WarcraftXL.cfg` next to `Wow.exe` (template:
+`<core>\docs\WarcraftXL.cfg.example`) for logging, rendering and storage knobs shared by
+every extension. This module's own settings live in `wxl-water.ini` (deployed to
+`<client>\Extensions\wxl-water\`) and can also be tuned live from the WarcraftXL overlay under
+**Modern Water**.
