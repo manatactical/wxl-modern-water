@@ -1,0 +1,31 @@
+{
+  "manifest": 1,
+
+  "extension": {
+    "id": "wxl-water",
+    "version": "1.0.0",
+    "abi": "1.1",
+    "entry": "wxl-water.dll",
+    "assets": ["wxl-water.ini", "waterdata.bin"],
+    "requires": {},
+    "conflicts": ["wxl-vol-fog"],
+    "hooks": []
+  },
+
+  "deploy": {
+    "mode": "release",
+    "match": "*.dll"
+  },
+
+  "listing": {
+    "title": "Modern Water",
+    "tagline": "GPU FFT waves, ripples and scene reflections for the 3.3.5a client.",
+    "description": "store/description.md",
+    "gallery": [],
+    "categories": ["rendering"],
+    "accent": "#4a90c2"
+  },
+
+  "license": "GPL-3.0-or-later",
+  "signature": null
+}
