@@ -110,3 +110,57 @@ The core reads `WarcraftXL.cfg` next to `Wow.exe` (template:
 every extension. This module's own settings live in `wxl-modern-water.ini` (deployed to
 `<client>\Extensions\wxl-modern-water\`) and can also be tuned live from the WarcraftXL overlay under
 **Modern Water**.
+
+## Packaging and release
+
+The release asset is a **single zip** named `wxl-modern-water.zip`. The WarcraftXL Hub installer
+fetches exactly one asset and only understands a bare `.dll` or a zip it can extract, and this module
+ships an `.ini` and an 8 MB `waterdata.bin` beside the DLL, so a bare DLL would leave the data behind.
+`wxl.json`'s `deploy.match` is `"*.zip"` and must stay that way.
+
+**Zip contents.** Everything sits at the zip root (no sub-folder), because the Hub requires
+`<id>.dll` at the root and the core reads the ini and data from the extension's own folder:
+
+```
+wxl-modern-water.zip
+  wxl-modern-water.dll
+  wxl-modern-water.ini
+  waterdata.bin
+```
+
+Do **not** ship sources, shaders, `wxl.json`, `store/`, the `.bak` DLL or logs in the zip.
+
+**Creating the zip.** After building the DLL into this folder (see *Building this module* above), run:
+
+```powershell
+.\tools\package.ps1            # packages the DLL + ini + data next to this file
+```
+
+`tools/package.ps1` builds `wxl-modern-water.zip` in the repo root from the current
+`wxl-modern-water.dll`, `wxl-modern-water.ini` and `data\waterdata.bin`. It refuses to run if any of
+them is missing, so build first. The GitHub workflow (`.github/workflows/release.yml`) performs the
+same staging on CI and publishes the zip as a Release tagged `v<version>`.
+
+## The manifest and the store listing
+
+`wxl.json` is the machine + store manifest. When you change the module:
+
+- Bump `extension.version` (semver). A bugfix that ships a new DLL is a **patch** bump (e.g.
+  `1.1.0` → `1.1.1`); a new feature is a **minor** bump. The release tag tracks this field, so
+  forgetting to bump it updates the existing release in place instead of creating a new one.
+- Keep `extension.id`, `entry`, `assets`, `conflicts` and `deploy` accurate. `assets` lists the files
+  the Hub deploys beside the DLL (`wxl-modern-water.ini`, `waterdata.bin`); `conflicts` must keep
+  `wxl-vol-fog` while the two modules replace the same graphics device.
+- The `listing` block is **for players, not developers**: `title`, `tagline`, `description`,
+  `categories` and `accent` are what the Hub shows. `description` points at `store/description.md`.
+
+`store/description.md` is the store page players read. Write it for someone who just wants to install
+and use the module:
+
+- Lead with what the player sees and feels (waves, ripples, reflections, per-zone colours), not with
+  the implementation (no D3D9, HLSL, `fxc`, CMake, offsets or "CoAVolFog pipeline").
+- Include a short **Requirements**, **Installing** and **If the water does not appear** section, and
+  always keep the `wxl-vol-fog` conflict warning and the CoAVolFog/GPLv3 credit (required by the
+  license).
+- Never put build instructions, repo layout or developer notes in the store description; those belong
+  in this file, `README.md` and `tools/`.

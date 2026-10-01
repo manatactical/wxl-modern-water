@@ -144,6 +144,20 @@ public:
     // The engine renders through the real device, not this wrapper, so the adopted-device hook has to
     // feed the client's Z-write back in for OverrideDepthWrite to restore it correctly.
     void NoteClientDepthWrite(DWORD value) { m_clientRequestedDepthWrite = value; }
+    // The engine keeps its own depth-stencil and re-binds it during its passes; the adopted-device
+    // SetDepthStencilSurface hook swaps that surface for the sampleable INTZ depth, so the water pass
+    // always sees the depth surface it captured. Other surfaces (shadow maps) are left alone.
+    void TakeEngineDepth(IDirect3DSurface9* depth)
+    {
+        if (m_engineDepthSurface)
+            m_engineDepthSurface->Release();
+        m_engineDepthSurface = depth;
+    }
+    bool SwapsEngineDepth(IDirect3DSurface9* surface) const
+    {
+        return surface && surface == m_engineDepthSurface && m_depthSurface != nullptr;
+    }
+    IDirect3DSurface9* AdoptedDepthSurface() const { return m_depthSurface; }
     bool BeginWater(const FrameInputs& in, const WaterInputs& water, const Config& cfg, const char** skip);
     void TagWater(WaterClass waterClass) { m_water.Tag(m_real, waterClass); }
     void UntagWater() { m_water.Untag(m_real); }
@@ -579,6 +593,7 @@ private:
     IDirect3DTexture9* m_depthTexture = nullptr;
     IDirect3DSurface9* m_depthSurface = nullptr;
     IDirect3DSurface9* m_clientDepth = nullptr;
+    IDirect3DSurface9* m_engineDepthSurface = nullptr;
     DepthCopy m_depthCopy;
     MultisamplingStatus m_multisampling;
     Renderer m_renderer;
@@ -963,6 +978,7 @@ void FogDevice::ReleaseDepth()
     m_depthCopy.Detach();
     ReleaseReference(m_clientDepth);
     ReleaseReference(m_depthSurface);
+    ReleaseReference(m_engineDepthSurface);
     ReleaseReference(m_depthTexture);
 }
 
@@ -1212,14 +1228,19 @@ bool FogDevice::Grade(const D3DVIEWPORT9& world, const float* curve, float stren
  * fog renderer draws through this wrapper on the same real device. When the engine renders
  * multisampled (the usual case) the engine's own depth-stencil stays bound and is resolved into a
  * single-sampled INTZ texture each frame, exactly as the original device-creation path does; when it
- * is single-sampled a matching INTZ depth is bound directly.
+ * is single-sampled a matching INTZ depth is bound directly, and the engine's own depth surface is
+ * swapped for it by the adopted SetDepthStencilSurface hook, so the client can rebind its depth
+ * without invalidating the water pass.
  * @return true when the live device is wrapped.
  */
 static FogDevice* g_adoptedDevice = nullptr;
 
 constexpr unsigned kDeviceSetRenderStateSlot = 57;
+constexpr unsigned kDeviceSetDepthStencilSurfaceSlot = 39;
 using DeviceSetRenderStateFn = HRESULT(STDMETHODCALLTYPE*)(IDirect3DDevice9*, D3DRENDERSTATETYPE, DWORD);
+using DeviceSetDepthStencilSurfaceFn = HRESULT(STDMETHODCALLTYPE*)(IDirect3DDevice9*, IDirect3DSurface9*);
 DeviceSetRenderStateFn g_origDeviceSetRenderState = nullptr;
+DeviceSetDepthStencilSurfaceFn g_origDeviceSetDepthStencilSurface = nullptr;
 
 HRESULT STDMETHODCALLTYPE AdoptedSetRenderState(IDirect3DDevice9* self, D3DRENDERSTATETYPE state, DWORD value)
 {
@@ -1235,21 +1256,41 @@ HRESULT STDMETHODCALLTYPE AdoptedSetRenderState(IDirect3DDevice9* self, D3DRENDE
     return g_origDeviceSetRenderState(self, state, value);
 }
 
+HRESULT STDMETHODCALLTYPE AdoptedSetDepthStencilSurface(IDirect3DDevice9* self, IDirect3DSurface9* surface)
+{
+    if (g_adoptedDevice && g_adoptedDevice->SwapsEngineDepth(surface))
+        surface = g_adoptedDevice->AdoptedDepthSurface();
+    return g_origDeviceSetDepthStencilSurface(self, surface);
+}
+
 bool InstallAdoptedDeviceStateHook(IDirect3DDevice9* real)
 {
-    if (g_origDeviceSetRenderState)
+    if (g_origDeviceSetRenderState && g_origDeviceSetDepthStencilSurface)
         return true;
     if (!real)
         return false;
     void** vtable = *reinterpret_cast<void***>(real);
     if (!vtable)
         return false;
-    g_origDeviceSetRenderState = reinterpret_cast<DeviceSetRenderStateFn>(vtable[kDeviceSetRenderStateSlot]);
+
     DWORD old = 0;
-    if (!VirtualProtect(&vtable[kDeviceSetRenderStateSlot], sizeof(void*), PAGE_EXECUTE_READWRITE, &old))
-        return false;
-    vtable[kDeviceSetRenderStateSlot] = reinterpret_cast<void*>(&AdoptedSetRenderState);
-    VirtualProtect(&vtable[kDeviceSetRenderStateSlot], sizeof(void*), old, &old);
+    if (!g_origDeviceSetRenderState)
+    {
+        g_origDeviceSetRenderState = reinterpret_cast<DeviceSetRenderStateFn>(vtable[kDeviceSetRenderStateSlot]);
+        if (!VirtualProtect(&vtable[kDeviceSetRenderStateSlot], sizeof(void*), PAGE_EXECUTE_READWRITE, &old))
+            return false;
+        vtable[kDeviceSetRenderStateSlot] = reinterpret_cast<void*>(&AdoptedSetRenderState);
+        VirtualProtect(&vtable[kDeviceSetRenderStateSlot], sizeof(void*), old, &old);
+    }
+    if (!g_origDeviceSetDepthStencilSurface)
+    {
+        g_origDeviceSetDepthStencilSurface =
+            reinterpret_cast<DeviceSetDepthStencilSurfaceFn>(vtable[kDeviceSetDepthStencilSurfaceSlot]);
+        if (!VirtualProtect(&vtable[kDeviceSetDepthStencilSurfaceSlot], sizeof(void*), PAGE_EXECUTE_READWRITE, &old))
+            return false;
+        vtable[kDeviceSetDepthStencilSurfaceSlot] = reinterpret_cast<void*>(&AdoptedSetDepthStencilSurface);
+        VirtualProtect(&vtable[kDeviceSetDepthStencilSurfaceSlot], sizeof(void*), old, &old);
+    }
     return true;
 }
 
@@ -1327,7 +1368,12 @@ bool AdoptExistingDevice()
             VF_LOG_ERROR("device adoption: the INTZ depth could not be created; fog and water are unavailable");
     }
     if (engineDepth)
-        engineDepth->Release();
+    {
+        if (!multisampled && ok)
+            device->TakeEngineDepth(engineDepth);  // the adopted swap keeps this reference
+        else
+            engineDepth->Release();
+    }
 
     if (!ok)
     {
@@ -1337,10 +1383,13 @@ bool AdoptExistingDevice()
 
     // The engine keeps using its own device; the hooks pick this wrapper up via WrapperOrLatestFogDevice.
     // Its SetRenderState is patched so the forced water depth write survives what the client does
-    // inside the water draw, exactly as it does when the client renders through the wrapper.
+    // inside the water draw, and its SetDepthStencilSurface is patched so the client's own depth
+    // surface is swapped for the sampleable INTZ one, exactly as it does when the client renders
+    // through the wrapper.
     if (!InstallAdoptedDeviceStateHook(real))
     {
-        VF_LOG_ERROR("device adoption: the live device's SetRenderState could not be patched");
+        VF_LOG_ERROR("device adoption: the live device's SetRenderState or SetDepthStencilSurface could not be "
+                     "patched");
         device->Release();
         return false;
     }

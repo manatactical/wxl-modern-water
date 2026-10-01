@@ -3,7 +3,7 @@
 
   "extension": {
     "id": "wxl-modern-water",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "abi": "1.1",
     "entry": "wxl-modern-water.dll",
     "assets": ["wxl-modern-water.ini", "waterdata.bin"],
@@ -19,7 +19,7 @@
 
   "listing": {
     "title": "Modern Water",
-    "tagline": "GPU FFT waves, ripples and scene reflections for the 3.3.5a client.",
+    "tagline": "Live, moving water with waves, ripples and reflections for World of Warcraft 3.3.5a.",
     "description": "store/description.md",
     "gallery": [],
     "categories": ["rendering"],
