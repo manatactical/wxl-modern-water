@@ -43,6 +43,22 @@ cmake --build wxl-build\wxl-core\build --config Release --target $name --paralle
 `module.cmake` compiles the HLSL passes with `fxc` and deploys the ini and data files next to the
 DLL. It needs the Windows SDK; set `-DVOLFOG_FXC=<path>` if `fxc.exe` is not found.
 
+## License and credits
+
+This module is derived from [CoAVolFog](https://github.com/jealous-sound/coa-vfog) by
+jealous-sound: it reuses, modifies and extends that project's water-rendering code. The upstream
+copyright and license therefore apply to the derived work.
+
+`wxl-water` is licensed under the **GNU General Public License version 3 only** (GPL-3.0-only); see
+[`LICENSE`](LICENSE). As an additional permission under GPLv3 section 7, you may link or combine
+this module, including modified versions, with the World of Warcraft client, and distribute the
+resulting combination without providing the client's source code. GPLv3 continues to apply to this
+module.
+
+If you redistribute this module or a modified version of it, keep the license and copyright notices
+intact, mark your changes with a relevant date, and provide the corresponding source under the same
+terms. The full GPLv3 text is in [`LICENSE`](LICENSE).
+
 ## Notes
 
 - The config and data are read from the extension DLL's own folder
