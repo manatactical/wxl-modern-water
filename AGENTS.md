@@ -37,10 +37,10 @@ static CRT.
 
 ## Workflow rules
 
-- **Always build the module DLL into this folder** (`wxl-water.dll` next to this file). Do not leave
-  the build output only under the core's `build/`.
+- **Always build the module DLL into this folder** (`wxl-modern-water.dll` next to this file). Do not
+  leave the build output only under the core's `build/`.
 - **Before replacing an existing DLL, back it up** by renaming/creating a `.bak` copy first
-  (`wxl-water.dll` → `wxl-water.dll.bak`).
+  (`wxl-modern-water.dll` → `wxl-modern-water.dll.bak`).
 - The game must be **closed** while deploying — the client locks the loaded DLL.
 - This module is **mutually exclusive** with `wxl-vol-fog` (`wxl.json` declares the conflict):
   each installs its own D3D9 device wrapper and engine call-site hooks, so only one may be loaded.
@@ -77,12 +77,15 @@ extension defines `WXL_EXTENSION`, exports the two ABI entry points (`WXL_Query`
 `include/wxl/PluginApi.h`), and subclasses `wxl::ext::EventScript` for events. Optional sibling
 `module.cmake` (extra include dirs / link libs / shader builds) is picked up automatically.
 
-Build this module by staging it into the core's `extensions/` folder and building the named target:
+Build this module by staging it into the core's `extensions/` folder and building the named target.
+Use the module name **`wxl-modern-water`**: the core derives both the CMake target and the output
+DLL from the staged folder name, so this produces `wxl-modern-water.dll` (the former `wxl-water`
+name is gone):
 
 ```powershell
 $core = "C:\Users\Strix\Documents\Github Projects\WXL-BUIDLER\wxl-build\wxl-core"
-$repo = "C:\Users\Strix\Documents\Github Projects\WXL\wxl-water"
-$name = "wxl-water"
+$repo = "C:\Users\Strix\Documents\Github Projects\WXL\wxl-modern-water"
+$name = "wxl-modern-water"
 $dst  = "$core\extensions\$name"
 New-Item -ItemType Directory -Force -Path $dst | Out-Null
 Copy-Item "$repo\*" -Destination $dst -Recurse -Force
@@ -90,19 +93,19 @@ Copy-Item "$repo\*" -Destination $dst -Recurse -Force
 cmake -S $core -B "$core\build" -A Win32
 cmake --build "$core\build" --config Release --target $name --parallel
 
-# copy the DLL back into the module folder, backing up any existing DLL first
+# copy wxl-modern-water.dll back into the module folder, backing up any existing DLL first
 if (Test-Path "$repo\$name.dll") { Copy-Item "$repo\$name.dll" "$repo\$name.dll.bak" -Force }
 Copy-Item "$core\build\Release\$name.dll" "$repo\$name.dll" -Force
 ```
 
 `module.cmake` needs `fxc.exe` from the Windows SDK; set `-DVOLFOG_FXC=<path>` on the configure line
 if it is not found. When `CLIENT_PATH` is set it also deploys `wxl-water.ini` and `data/waterdata.bin`
-to `<client>\Extensions\wxl-water\`.
+to `<client>\Extensions\wxl-modern-water\` (the deploy path follows the staged folder name).
 
 ## Configuring
 
 The core reads `WarcraftXL.cfg` next to `Wow.exe` (template:
 `<core>\docs\WarcraftXL.cfg.example`) for logging, rendering and storage knobs shared by
 every extension. This module's own settings live in `wxl-water.ini` (deployed to
-`<client>\Extensions\wxl-water\`) and can also be tuned live from the WarcraftXL overlay under
+`<client>\Extensions\wxl-modern-water\`) and can also be tuned live from the WarcraftXL overlay under
 **Modern Water**.
