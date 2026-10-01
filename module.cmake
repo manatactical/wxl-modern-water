@@ -120,9 +120,9 @@ add_dependencies(${wxl_ext_name} ${wxl_ext_name}_shaders)
 if(CLIENT_PATH)
     add_custom_command(TARGET ${wxl_ext_name} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory "${CLIENT_PATH}/Extensions/${wxl_ext_name}"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different "${wxl_ext_dir}/wxl-water.ini"
-                "${CLIENT_PATH}/Extensions/${wxl_ext_name}/wxl-water.ini"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "${wxl_ext_dir}/wxl-modern-water.ini"
+                "${CLIENT_PATH}/Extensions/${wxl_ext_name}/wxl-modern-water.ini"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different "${wxl_ext_dir}/data/waterdata.bin"
                 "${CLIENT_PATH}/Extensions/${wxl_ext_name}/waterdata.bin"
-        COMMENT "Deploy wxl-water config + data -> ${CLIENT_PATH}/Extensions/${wxl_ext_name}")
+        COMMENT "Deploy wxl-modern-water config + data -> ${CLIENT_PATH}/Extensions/${wxl_ext_name}")
 endif()

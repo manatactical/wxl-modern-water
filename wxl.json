@@ -2,11 +2,11 @@
   "manifest": 1,
 
   "extension": {
-    "id": "wxl-water",
+    "id": "wxl-modern-water",
     "version": "1.0.0",
     "abi": "1.1",
-    "entry": "wxl-water.dll",
-    "assets": ["wxl-water.ini", "waterdata.bin"],
+    "entry": "wxl-modern-water.dll",
+    "assets": ["wxl-modern-water.ini", "waterdata.bin"],
     "requires": {},
     "conflicts": ["wxl-vol-fog"],
     "hooks": []

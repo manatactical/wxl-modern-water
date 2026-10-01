@@ -21,14 +21,14 @@ and engine hooks, so load only one at a time.
 
 | File | Purpose |
 |---|---|
-| `wxl-water.dll` | the extension |
-| `wxl-water.ini` | settings, also the in-game documentation |
+| `wxl-modern-water.dll` | the extension |
+| `wxl-modern-water.ini` | settings, also the in-game documentation |
 | `waterdata.bin` | Forever water data (from `tools/convert_forever_water.py`) |
 
 ## Building
 
 ```powershell
-$name = "wxl-water"
+$name = "wxl-modern-water"
 $dst  = "wxl-build\wxl-core\extensions\$name"
 New-Item -ItemType Directory -Force -Path $dst | Out-Null
 Copy-Item "modules\$name\*" -Destination $dst -Recurse -Force

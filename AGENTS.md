@@ -1,6 +1,6 @@
 # AGENTS.md
 
-This workspace is the **wxl-water** module (listed as **Modern Water**): a single WarcraftXL
+This workspace is the **wxl-modern-water** module (listed as **Modern Water**): a single WarcraftXL
 extension that adds modern water shading to the World of Warcraft 3.3.5a **(build 12340)** client.
 It is the water half of the former combined `wxl-vol-fog` module — GPU FFT waves, foam, sun
 highlights, player/creature ripples, scene reflections and depth-aware absorption, tuned from the
@@ -24,13 +24,14 @@ data/                waterdata.bin (zone colours / wave spectra)
 tools/               the Forever water data converter and helper scripts
 cmake/               shader list cmake (WaterShaders.cmake, WaterFftShaders.cmake)
 module.cmake         fxc shader build + config/data deployment (picked up by the core's extension loop)
-wxl.json             extension manifest (id wxl-water, entry wxl-water.dll, conflicts wxl-vol-fog)
+wxl.json             extension manifest (id wxl-modern-water, entry wxl-modern-water.dll, conflicts wxl-vol-fog)
+wxl-modern-water.ini default settings, also the players' documentation
 store/               store listing description
 ```
 
 `module.cmake` was inherited from `wxl-vol-fog`, so its comments and `VOLFOG_*` variable names still
 refer to the old combined module; functionally it compiles the HLSL passes with `fxc` into generated
-headers and deploys `wxl-water.ini` + `data/waterdata.bin` beside the DLL.
+headers and deploys `wxl-modern-water.ini` + `data/waterdata.bin` beside the DLL.
 
 Everything targets **32-bit (Win32)** — the client is a 32-bit process. Sources are **C++20** with a
 static CRT.
@@ -99,13 +100,13 @@ Copy-Item "$core\build\Release\$name.dll" "$repo\$name.dll" -Force
 ```
 
 `module.cmake` needs `fxc.exe` from the Windows SDK; set `-DVOLFOG_FXC=<path>` on the configure line
-if it is not found. When `CLIENT_PATH` is set it also deploys `wxl-water.ini` and `data/waterdata.bin`
+if it is not found. When `CLIENT_PATH` is set it also deploys `wxl-modern-water.ini` and `data/waterdata.bin`
 to `<client>\Extensions\wxl-modern-water\` (the deploy path follows the staged folder name).
 
 ## Configuring
 
 The core reads `WarcraftXL.cfg` next to `Wow.exe` (template:
 `<core>\docs\WarcraftXL.cfg.example`) for logging, rendering and storage knobs shared by
-every extension. This module's own settings live in `wxl-water.ini` (deployed to
+every extension. This module's own settings live in `wxl-modern-water.ini` (deployed to
 `<client>\Extensions\wxl-modern-water\`) and can also be tuned live from the WarcraftXL overlay under
 **Modern Water**.

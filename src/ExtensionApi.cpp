@@ -1,4 +1,4 @@
-// wxl-water: WXL extension entry points for the modern water pipeline alone. The shared CoAVolFog
+// wxl-modern-water: WXL extension entry points for the modern water pipeline alone. The shared CoAVolFog
 // engine/D3D9 layer is carried verbatim so the module is self-contained; this seam loads only the
 // water data and installs only the water hooks.
 // Copyright (C) 2026 WarcraftXL. GPLv3.
@@ -49,17 +49,17 @@ namespace
         char line[1024];
         std::vsnprintf(line, sizeof(line), fmt, ap);
         va_end(ap);
-        g_api->Log(WXL_LOG_INFO, "wxl-water", "%s", line);
+        g_api->Log(WXL_LOG_INFO, "wxl-modern-water", "%s", line);
     }
 
     void Attach()
     {
         const std::string dir = ModuleDirectory(ThisModule());
-        LogOpen((dir + "wxl-water.log").c_str());
+        LogOpen((dir + "wxl-modern-water.log").c_str());
 
-        GlobalConfig().Load(dir + "wxl-water.ini");
+        GlobalConfig().Load(dir + "wxl-modern-water.ini");
         const Config& cfg = GlobalConfig().Get();
-        LogF("wxl-water loaded from %s", dir.c_str());
+        LogF("wxl-modern-water loaded from %s", dir.c_str());
 
         if (g_api)
         {
@@ -97,7 +97,7 @@ extern "C" __declspec(dllexport) const WXL_PluginInfo* __cdecl WXL_Query()
     static const WXL_PluginInfo info = {
         sizeof(WXL_PluginInfo),
         WXL_API_VERSION,
-        "wxl-water",
+        "wxl-modern-water",
         1,
         WXL_CLIENT_BUILD,
     };
@@ -109,6 +109,6 @@ extern "C" __declspec(dllexport) int __cdecl WXL_Load(const WXL_Api* api)
     if (!api || api->apiVersion != WXL_API_VERSION) return 0;
     g_api = api;
     Attach();
-    if (api->Log) api->Log(WXL_LOG_INFO, "wxl-water", "modern water ready");
+    if (api->Log) api->Log(WXL_LOG_INFO, "wxl-modern-water", "modern water ready");
     return 1;
 }

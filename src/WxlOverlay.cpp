@@ -1,4 +1,4 @@
-// wxl-water: the WXL overlay bridge for the modern water pipeline. Only the water settings are
+// wxl-modern-water: the WXL overlay bridge for the modern water pipeline. Only the water settings are
 // exposed; the CoAVolFog fog knobs are not shown.
 // Copyright (C) 2026 WarcraftXL. GPLv3.
 
@@ -106,7 +106,7 @@ static void __cdecl DrawPanel(void*)
     api.UiSameLine();
     if (api.UiButton("Revert"))
         store.Revert();
-    api.UiText(store.HasUnsavedChanges() ? "Unsaved changes" : "Matches wxl-water.ini");
+    api.UiText(store.HasUnsavedChanges() ? "Unsaved changes" : "Matches wxl-modern-water.ini");
 }
 
 void AttachOverlay(IDirect3DDevice9*, HWND) {}
