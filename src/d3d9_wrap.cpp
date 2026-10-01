@@ -77,6 +77,9 @@ bool g_fogAllowedOnNewDevices = false;
 FogDevice* g_latestFogDevice = nullptr;
 FogDevice* g_devices[kMaxDevices] = {};
 bool g_waterDepthWriteForced = false;
+// True while OverrideDepthWrite applies its own value, so the adopted-device hook does not mistake
+// that write for a client request and clobber the client's remembered Z-write.
+bool g_depthWriteOverrideApplying = false;
 
 void Register(FogDevice* device)
 {
@@ -138,6 +141,9 @@ public:
     float DrawnFogGlowCompensation() const { return m_renderer.DrawnGlowCompensation(); }
     void ForceDepthWrite(bool force) { OverrideDepthWrite(m_forceDepthWrite, force); }
     void SuppressDepthWrite(bool suppress) { OverrideDepthWrite(m_suppressDepthWrite, suppress); }
+    // The engine renders through the real device, not this wrapper, so the adopted-device hook has to
+    // feed the client's Z-write back in for OverrideDepthWrite to restore it correctly.
+    void NoteClientDepthWrite(DWORD value) { m_clientRequestedDepthWrite = value; }
     bool BeginWater(const FrameInputs& in, const WaterInputs& water, const Config& cfg, const char** skip);
     void TagWater(WaterClass waterClass) { m_water.Tag(m_real, waterClass); }
     void UntagWater() { m_water.Untag(m_real); }
@@ -554,7 +560,9 @@ private:
         overrideActive = active;
         if (&overrideActive == &m_waterForcesDepthWrite)
             g_waterDepthWriteForced = active;
+        g_depthWriteOverrideApplying = true;
         m_real->SetRenderState(D3DRS_ZWRITEENABLE, DepthWriteToApply());
+        g_depthWriteOverrideApplying = false;
     }
 
     LONG m_ref = 1;
@@ -1215,8 +1223,15 @@ DeviceSetRenderStateFn g_origDeviceSetRenderState = nullptr;
 
 HRESULT STDMETHODCALLTYPE AdoptedSetRenderState(IDirect3DDevice9* self, D3DRENDERSTATETYPE state, DWORD value)
 {
-    if (state == D3DRS_ZWRITEENABLE && g_waterDepthWriteForced)
-        value = TRUE;
+    if (state == D3DRS_ZWRITEENABLE)
+    {
+        // Remember what the client asked for so OverrideDepthWrite can put the device back exactly
+        // where the client believes it is once the water pass is over.
+        if (g_adoptedDevice && !g_depthWriteOverrideApplying)
+            g_adoptedDevice->NoteClientDepthWrite(value);
+        if (g_waterDepthWriteForced)
+            value = TRUE;
+    }
     return g_origDeviceSetRenderState(self, state, value);
 }
 
