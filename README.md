@@ -5,6 +5,8 @@ WarcraftXL extension. It is the water half of the former combined `wxl-vol-fog` 
 is the CoAVolFog water code, loaded through WarcraftXL's extension loader and tuned from the
 WarcraftXL overlay.
 
+![Modern Water screenshot](modernwater-screenshot.webp)
+
 ## What it does
 
 - GPU FFT wave simulation (128 or 256), foam, sun highlights and zone colours from `waterdata.bin`.
